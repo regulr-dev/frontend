@@ -17,10 +17,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
-    const [cfg, me] = await Promise.all([api<Config>('/api/config'), api<{ user: User | null }>('/api/me')]);
-    setConfig(cfg);
-    setUser(me.user);
-    setLoading(false);
+    try {
+      const [cfg, me] = await Promise.all([api<Config>('/api/config'), api<{ user: User | null }>('/api/me')]);
+      setConfig(cfg);
+      setUser(me.user);
+    } catch (err) {
+      console.error('Failed to load session:', err);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   const signOut = useCallback(async () => {

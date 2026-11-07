@@ -16,7 +16,17 @@ export function MyCards() {
     api<{ cards: Card[] }>('/api/me/cards').then((r) => setCards(r.cards));
   }, [user]);
 
-  if (loading || !config) return <div className="page"><p className="muted">Loading…</p></div>;
+  if (loading) return <div className="page"><p className="muted">Loading…</p></div>;
+
+  if (!config) {
+    return (
+      <div className="page">
+        <h1 className="page-title">Connection error</h1>
+        <p className="muted">Unable to reach the server. Please check your connection or try again.</p>
+        <button type="button" className="btn" onClick={() => refresh()}>Retry</button>
+      </div>
+    );
+  }
 
   if (!user) {
     return (
