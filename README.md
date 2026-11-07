@@ -23,3 +23,4 @@ The frontend runs on `http://localhost:3000`. In development, requests to `/api`
 - `npm run typecheck` - Run TypeScript compiler verification
 - `npm run build` - Build production bundle to `dist/`
 - `npm run preview` - Preview production build locally
+
