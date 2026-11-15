@@ -14,18 +14,21 @@ type Props = {
   balanceClassName?: string;
   /** Animate the "you are here" marker after a stamp. */
   pop?: boolean;
+  /** IDs of rewards claimed in the current cycle */
+  cycleClaims?: string[];
   children?: ReactNode;
 };
 
 /** The store's branded loyalty card, drawn like the Google Wallet card. */
-export function StoreCard({ name, logoUrl, coverUrl, bgColor, textColor, balance, rewards, memberName, compact, balanceClassName, pop, children }: Props) {
+export function StoreCard({ name, logoUrl, coverUrl, bgColor, textColor, balance, rewards, memberName, compact, balanceClassName, pop, cycleClaims, children }: Props) {
   const style = { '--brand-bg': bgColor, '--brand-fg': textColor } as CSSProperties;
-  const progress = stampProgress(rewards, balance);
+  const progress = stampProgress(rewards, balance, cycleClaims);
   // The SVG holds only numbers, validated colours and an escaped photo URL (no shop-entered text), so it's safe to inject.
   const rewardKey = rewards.map((r) => `${r.cost}:${r.icon}`).join();
+  const claimedKey = cycleClaims?.join() ?? '';
   const art = useMemo(
-    () => progress && stampArtSvg({ bg: bgColor, fg: textColor, balance, rewards, photo: coverUrl, pop }),
-    [bgColor, textColor, balance, rewardKey, coverUrl, pop, Boolean(progress)],
+    () => progress && stampArtSvg({ bg: bgColor, fg: textColor, balance, rewards, claimedIds: cycleClaims, photo: coverUrl, pop }),
+    [bgColor, textColor, balance, rewardKey, claimedKey, coverUrl, pop, Boolean(progress)],
   );
 
   return (

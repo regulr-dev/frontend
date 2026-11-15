@@ -29,6 +29,8 @@ type OpenResponse = {
   happyHours: { now: HappyHourInfo | null; today: HappyHourInfo[] };
   /** Times this customer claimed each reward that has a per-customer limit. */
   claims?: Record<string, number>;
+  /** IDs of rewards claimed in the current progressive ladder cycle */
+  cycleClaims?: string[];
 };
 
 const timesWord = (m: number) => (m === 2 ? 'Double' : m === 3 ? 'Triple' : `${m}×`);
@@ -78,6 +80,7 @@ export function CardPage() {
   const [data, setData] = useState<OpenResponse | null>(null);
   const [missing, setMissing] = useState(false);
   const [balance, setBalance] = useState(0);
+  const [cycleClaims, setCycleClaims] = useState<string[]>([]);
   const [inWallet, setInWallet] = useState(false);
   const [messagesOff, setMessagesOff] = useState(false);
   const [tapExpiresAt, setTapExpiresAt] = useState<Date | null>(null);
@@ -139,6 +142,7 @@ export function CardPage() {
 
     const finalBalance = res.membership.balance;
     setBalance(finalBalance);
+    setCycleClaims(res.cycleClaims ?? []);
     setInWallet(res.membership.inWallet);
     setMessagesOff(res.membership.messagesOff);
 
@@ -199,11 +203,12 @@ export function CardPage() {
     const reward = data!.store.rewards.find((r) => r.id === rewardId)!;
     if (!confirm(`Claim "${reward.name}" for ${reward.cost} stamps?\n\nOnly confirm in front of the cashier.`)) return;
     try {
-      const result = await api<{ membership: { balance: number }; reward: { name: string }; redeemedAt: string }>(
+      const result = await api<{ membership: { balance: number }; reward: { name: string }; redeemedAt: string; cycleClaims?: string[] }>(
         `/api/stores/${slug}/redeem`,
         { method: 'POST', body: { rewardId, tapId: tapRef.current } },
       );
       setBalance(result.membership.balance);
+      setCycleClaims(result.cycleClaims ?? []);
       tapRef.current = null; // one reward per tap
       setNotice(null);
       setHistory(null);
@@ -212,6 +217,7 @@ export function CardPage() {
     } catch (err: any) {
       const messages: Record<string, string> = {
         not_enough_stamps: "You don't have enough stamps for that yet.",
+        reward_already_claimed_in_cycle: "You've already claimed this reward in your current card cycle.",
         tap_required: 'Ask the cashier to tap their card, then claim again.',
         tap_already_used_for_reward: 'That tap was already used for a reward. Ask for another tap.',
       };
@@ -269,6 +275,7 @@ export function CardPage() {
         textColor={store.textColor}
         balance={balance}
         rewards={store.rewards}
+        cycleClaims={cycleClaims}
         memberName={data.user.name || data.user.email}
         balanceClassName={bump ? 'bump' : ''}
         pop={pop}
@@ -325,9 +332,10 @@ export function CardPage() {
           const missingStamps = r.cost - balance;
           const used = data.claims?.[r.id] ?? 0;
           const usedUp = r.perCustomerLimit != null && used >= r.perCustomerLimit;
+          const claimedInCycle = cycleClaims.includes(r.id);
           const lastDay = r.endsAt && new Date(new Date(r.endsAt).getTime() - 1).toLocaleDateString([], { day: 'numeric', month: 'short' });
           return (
-            <div className={`reward${usedUp ? ' used-up' : ''}`} key={r.id}>
+            <div className={`reward${usedUp || claimedInCycle ? ' used-up' : ''}`} key={r.id}>
               <div className="info">
                 <div><strong>{r.name}</strong></div>
                 {r.description && <div className="hint">{r.description}</div>}
@@ -339,7 +347,9 @@ export function CardPage() {
                 )}
               </div>
               <div className="cost">{r.cost} ⭑</div>
-              {usedUp ? (
+              {claimedInCycle ? (
+                <span className="badge" style={{ background: '#dcfce7', color: '#15803d', fontWeight: 600 }}>Claimed</span>
+              ) : usedUp ? (
                 <span className="hint">Already claimed</span>
               ) : missingStamps > 0 ? (
                 <span className="hint">Collect {missingStamps} more</span>
