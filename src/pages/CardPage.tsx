@@ -444,32 +444,14 @@ export function CardPage() {
                   <div>
                     <h2 className="rewards-join-title">{store.name}</h2>
                     <p className="rewards-join-subtitle">
-                      {customerMode === 'join' ? 'Collect stamps to earn rewards' : 'Welcome back! View your loyalty card'}
+                      {customerMode === 'join' ? 'Collect stamps to earn rewards' : 'Welcome back! Enter your email to view your card'}
                     </p>
                   </div>
 
-                  {/* Mode switcher: Join vs Sign In */}
-                  <div className="hub-mode-toggle">
-                    <button
-                      type="button"
-                      className={`hub-mode-btn ${customerMode === 'join' ? 'active' : ''}`}
-                      onClick={() => { setCustomerMode('join'); setJoinError(null); }}
-                    >
-                      Join Rewards
-                    </button>
-                    <button
-                      type="button"
-                      className={`hub-mode-btn ${customerMode === 'login' ? 'active' : ''}`}
-                      onClick={() => { setCustomerMode('login'); setJoinError(null); }}
-                    >
-                      Log In
-                    </button>
-                  </div>
-
-                  {/* Reward Badges Preview */}
+                  {/* Reward Badges Preview (Candour side-by-side milestone badges) */}
                   {store.rewards.length > 0 && customerMode === 'join' && (
                     <div className="rewards-badges-row">
-                      {store.rewards.slice(0, 3).map((r, i) => (
+                      {store.rewards.slice(0, 2).map((r, i) => (
                         <div key={r.id} className="reward-badge-card">
                           <div className={`reward-badge-circle ${i === 1 ? 'pink' : i === 2 ? 'green' : ''}`}>
                             {r.cost}
@@ -609,8 +591,8 @@ export function CardPage() {
                   <HappyHourBanner {...data.happyHours} />
 
                   {/* Add to Google Wallet */}
-                  {config.googleWallet && (
-                    <div style={{ display: 'grid', gap: '8px' }}>
+                  {config.googleWallet !== false && (
+                    <div style={{ display: 'grid', gap: '8px', margin: '12px 0 6px' }}>
                       {walletState === 'syncing' && <div className="wallet-status">Updating your Google Wallet card…</div>}
                       {walletState === 'updated' && <div className="wallet-status ok">✓ Google Wallet card updated.</div>}
                       <button

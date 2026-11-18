@@ -18,11 +18,19 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const refresh = useCallback(async () => {
     try {
-      const [cfg, me] = await Promise.all([api<Config>('/api/config'), api<{ user: User | null }>('/api/me')]);
+      const [cfg, me] = await Promise.all([
+        api<Config>('/api/config').catch((err) => {
+          console.warn('Config fetch warning:', err);
+          return { googleClientId: '', devLogin: false, googleWallet: true };
+        }),
+        api<{ user: User | null }>('/api/me').catch(() => ({ user: null })),
+      ]);
       setConfig(cfg);
       setUser(me.user);
     } catch (err) {
       console.error('Failed to load session:', err);
+      setConfig({ googleClientId: '', devLogin: false, googleWallet: true });
+      setUser(null);
     } finally {
       setLoading(false);
     }

@@ -27,8 +27,8 @@ createRoot(document.getElementById('root')!).render(
               <Route path="/discover" element={<Suspense fallback={loading}><Discover /></Suspense>} />
               <Route path="/inbox" element={<Inbox />} />
               <Route path="/account" element={<Account />} />
-              <Route path="/s/:slug" element={<CardPage />} />
             </Route>
+            <Route path="/s/:slug" element={<CardPage />} />
             <Route path="/portal/*" element={<Suspense fallback={loading}><Portal /></Suspense>} />
             <Route path="*" element={<Navigate to="/cards" replace />} />
           </Routes>
