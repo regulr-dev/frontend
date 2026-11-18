@@ -508,6 +508,43 @@ table.clickable tbody tr:hover, table.clickable tbody tr:focus-visible { backgro
   border-bottom-right-radius: 24px;
 }
 
+.hub-back-btn {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 10;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 999px;
+  padding: 6px 14px 6px 10px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  transition: background-color 0.15s ease, transform 0.15s ease;
+}
+
+.hub-back-btn:hover {
+  background: rgba(15, 23, 42, 0.85);
+  transform: translateY(-1px);
+}
+
+.hub-back-btn:active {
+  transform: translateY(0);
+}
+
+.hub-back-arrow {
+  font-size: 1.25rem;
+  line-height: 1;
+  margin-top: -1px;
+}
+
 .store-hub-hero img {
   width: 100%;
   height: 100%;
@@ -990,6 +1027,35 @@ table.clickable tbody tr:hover, table.clickable tbody tr:focus-visible { backgro
   display: grid;
   gap: 12px;
   justify-items: center;
+}
+
+.hub-footer-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 2px;
+}
+
+.hub-footer-nav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #64748b;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.hub-footer-nav-link:hover {
+  color: #0f172a;
+}
+
+.hub-footer-dot {
+  color: #cbd5e1;
+  font-size: 0.9rem;
 }
 
 .social-link {

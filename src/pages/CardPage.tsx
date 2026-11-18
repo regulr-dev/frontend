@@ -392,6 +392,10 @@ export function CardPage() {
     <div className="store-hub">
       {/* 1. Header Hero Cover Photo */}
       <div className="store-hub-hero">
+        <Link to="/cards" className="hub-back-btn" aria-label="Back to My Cards">
+          <span className="hub-back-arrow">‹</span>
+          <span>My cards</span>
+        </Link>
         <img src={heroImage} alt={store.name} />
         <div className="store-hub-hero-overlay" />
       </div>
@@ -711,17 +715,22 @@ export function CardPage() {
                   </div>
 
                   {/* Account switcher */}
-                  <div style={{ fontSize: '0.82rem', color: '#64748b', textAlign: 'center', marginTop: '12px' }}>
-                    Signed in as {data.user?.name || data.user?.email} ·{' '}
+                  <div style={{ fontSize: '0.82rem', color: '#64748b', textAlign: 'center', marginTop: '14px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <span>Signed in as <strong>{data.user?.name || data.user?.email}</strong></span>
+                    <span>·</span>
+                    <Link to="/cards" className="link-btn small" style={{ fontWeight: 600 }}>
+                      All my cards →
+                    </Link>
+                    <span>·</span>
                     <button
                       type="button"
-                      className="link-btn small"
+                      className="link-btn small muted"
                       onClick={async () => {
                         await session.signOut();
                         await open();
                       }}
                     >
-                      Sign out / Switch
+                      Sign out
                     </button>
                   </div>
                 </div>
@@ -896,6 +905,20 @@ export function CardPage() {
 
       {/* 5. Footer */}
       <div className="store-hub-footer">
+        <div className="hub-footer-nav">
+          <Link to="/cards" className="hub-footer-nav-link">
+            <span>▤</span> My Cards
+          </Link>
+          <span className="hub-footer-dot">·</span>
+          <Link to="/discover" className="hub-footer-nav-link">
+            <span>◎</span> Discover
+          </Link>
+          <span className="hub-footer-dot">·</span>
+          <Link to="/portal" className="hub-footer-nav-link">
+            <span>🏪</span> Shop Portal
+          </Link>
+        </div>
+
         <a
           href="https://instagram.com"
           target="_blank"
