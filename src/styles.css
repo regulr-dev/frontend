@@ -1029,35 +1029,6 @@ table.clickable tbody tr:hover, table.clickable tbody tr:focus-visible { backgro
   justify-items: center;
 }
 
-.hub-footer-nav {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  flex-wrap: wrap;
-  margin-bottom: 2px;
-}
-
-.hub-footer-nav-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: #64748b;
-  text-decoration: none;
-  transition: color 0.15s ease;
-}
-
-.hub-footer-nav-link:hover {
-  color: #0f172a;
-}
-
-.hub-footer-dot {
-  color: #cbd5e1;
-  font-size: 0.9rem;
-}
-
 .social-link {
   width: 44px;
   height: 44px;

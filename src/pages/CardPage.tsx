@@ -905,20 +905,6 @@ export function CardPage() {
 
       {/* 5. Footer */}
       <div className="store-hub-footer">
-        <div className="hub-footer-nav">
-          <Link to="/cards" className="hub-footer-nav-link">
-            <span>▤</span> My Cards
-          </Link>
-          <span className="hub-footer-dot">·</span>
-          <Link to="/discover" className="hub-footer-nav-link">
-            <span>◎</span> Discover
-          </Link>
-          <span className="hub-footer-dot">·</span>
-          <Link to="/portal" className="hub-footer-nav-link">
-            <span>🏪</span> Shop Portal
-          </Link>
-        </div>
-
         <a
           href="https://instagram.com"
           target="_blank"
