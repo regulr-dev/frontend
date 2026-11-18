@@ -1,72 +1,59 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { api, type Config } from '../api';
 
-declare global {
-  interface Window {
-    google?: any;
-  }
-}
-
-let gsiScript: Promise<void> | null = null;
-function loadGoogleScript() {
-  gsiScript ??= new Promise((resolve, reject) => {
-    const s = document.createElement('script');
-    s.src = 'https://accounts.google.com/gsi/client';
-    s.async = true;
-    s.onload = () => resolve();
-    s.onerror = reject;
-    document.head.appendChild(s);
-  });
-  return gsiScript;
-}
-
-/** Google Sign-In button, plus the email-only dev login when DEV_LOGIN=true. */
-export function SignIn({ config, onSignedIn }: { config: Config; onSignedIn: () => void }) {
-  const buttonRef = useRef<HTMLDivElement>(null);
+/** Customer Email-only Sign-In (no Google OAuth required). */
+export function SignIn({ onSignedIn }: { config?: Config; onSignedIn: () => void }) {
   const [email, setEmail] = useState('');
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    if (!config.googleClientId) return;
-    let cancelled = false;
-    loadGoogleScript().then(() => {
-      if (cancelled || !buttonRef.current) return;
-      window.google.accounts.id.initialize({
-        client_id: config.googleClientId,
-        callback: async ({ credential }: { credential: string }) => {
-          try {
-            await api('/api/auth/google', { method: 'POST', body: { credential } });
-            onSignedIn();
-          } catch {
-            setError('Google sign-in failed. Please try again.');
-          }
-        },
-      });
-      window.google.accounts.id.renderButton(buttonRef.current, { theme: 'filled_black', size: 'large', shape: 'pill', text: 'continue_with' });
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [config.googleClientId, onSignedIn]);
-
-  async function devLogin(e: FormEvent) {
+  async function handleLogin(e: FormEvent) {
     e.preventDefault();
-    await api('/api/auth/dev', { method: 'POST', body: { email } });
-    onSignedIn();
+    setError('');
+    const cleanEmail = email.trim();
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      setError('Please enter a valid email address.');
+      return;
+    }
+    setLoading(true);
+    try {
+      await api('/api/auth/customer-login', { method: 'POST', body: { email: cleanEmail } });
+      onSignedIn();
+    } catch (err: any) {
+      setError(
+        err?.data?.detail ||
+          (err?.code === 'user_not_found'
+            ? 'No loyalty cards found for this email. Visit a store to join!'
+            : 'Could not log in. Please try again.')
+      );
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
     <div className="signin">
-      {config.googleClientId && <div ref={buttonRef} />}
-      {config.devLogin && (
-        <form className="dev-login" onSubmit={devLogin}>
-          <p className="muted small">Dev login (local only)</p>
-          <input type="email" placeholder="you@example.com" required value={email} onChange={(e) => setEmail(e.target.value)} />
-          <button className="btn">Continue</button>
-        </form>
-      )}
-      {!config.googleClientId && !config.devLogin && <p className="muted">Sign-in is not configured.</p>}
-      {error && <p className="notice bad">{error}</p>}
+      <form className="customer-email-login" onSubmit={handleLogin}>
+        <div style={{ textAlign: 'center', marginBottom: '12px' }}>
+          <div style={{ fontSize: '2.4rem', marginBottom: '4px' }}>▤</div>
+          <strong style={{ fontSize: '1.1rem', color: 'var(--text)' }}>Access your loyalty cards</strong>
+          <p className="muted small" style={{ margin: '6px 0 0', lineHeight: 1.4 }}>
+            Enter your email to view all the loyalty cards you've collected.
+          </p>
+        </div>
+        <input
+          type="email"
+          placeholder="your.email@example.com"
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          style={{ width: '100%', marginBottom: '10px' }}
+        />
+        <button type="submit" className="btn brand" disabled={loading} style={{ width: '100%' }}>
+          {loading ? 'Finding your cards…' : 'View My Cards'}
+        </button>
+        {error && <p className="notice bad small" style={{ margin: '10px 0 0' }}>{error}</p>}
+      </form>
     </div>
   );
 }

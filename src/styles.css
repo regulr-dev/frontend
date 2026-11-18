@@ -938,3 +938,51 @@ table.clickable tbody tr:hover, table.clickable tbody tr:focus-visible { backgro
   text-decoration: none;
 }
 
+/* Mode toggle inside Start Earning Rewards card */
+.hub-mode-toggle {
+  display: flex;
+  background: #f1f5f9;
+  border-radius: 999px;
+  padding: 3px;
+  margin: 4px auto 14px;
+  max-width: 320px;
+}
+
+.hub-mode-btn {
+  flex: 1;
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: none;
+  background: transparent;
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.hub-mode-btn.active {
+  background: #ffffff;
+  color: #1e293b;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.customer-email-login {
+  display: grid;
+  gap: 12px;
+  width: 100%;
+  max-width: 340px;
+  margin: 0 auto;
+  text-align: left;
+}
+
+.customer-email-login input {
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid #cbd5e1;
+  font-size: 0.95rem;
+  background: #fff;
+}
+
+

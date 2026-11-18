@@ -96,6 +96,7 @@ export function CardPage() {
   const session = useSession();
 
   const tapRef = useRef<string | null>(params.get('tap'));
+  const passTokenRef = useRef<string | null>(params.get('passToken'));
   const tapErrorRef = useRef(params.has('tap_error'));
   const cameFromTap = useRef(Boolean(tapRef.current));
   const opened = useRef(false);
@@ -125,7 +126,8 @@ export function CardPage() {
   const [copiedWifi, setCopiedWifi] = useState(false);
   const [shareToast, setShareToast] = useState(false);
 
-  // Join form state
+  // Join / Login mode state
+  const [customerMode, setCustomerMode] = useState<'join' | 'login'>('join');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [birthMonth, setBirthMonth] = useState<number | ''>('');
@@ -134,7 +136,9 @@ export function CardPage() {
   const [joinError, setJoinError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (params.has('tap') || params.has('tap_error')) navigate(`/s/${slug}`, { replace: true });
+    if (params.has('tap') || params.has('tap_error') || params.has('passToken')) {
+      navigate(`/s/${slug}`, { replace: true });
+    }
   }, [params, navigate, slug]);
 
   const syncWallet = useCallback(async () => {
@@ -169,7 +173,10 @@ export function CardPage() {
     try {
       res = await api<OpenResponse>(`/api/stores/${encodeURIComponent(slug)}/open`, {
         method: 'POST',
-        body: { tapId: tapRef.current ?? undefined },
+        body: {
+          tapId: tapRef.current ?? undefined,
+          passToken: passTokenRef.current ?? undefined,
+        },
       });
     } catch {
       setMissing(true);
@@ -264,6 +271,31 @@ export function CardPage() {
       setRewardsOpen(true);
     } catch (err: any) {
       setJoinError(err?.message || 'Failed to join loyalty program. Please try again.');
+    } finally {
+      setJoinLoading(false);
+    }
+  }
+
+  async function handleCustomerLogin(e: FormEvent) {
+    e.preventDefault();
+    const cleanEmail = email.trim();
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      setJoinError('Please enter a valid email address');
+      return;
+    }
+    setJoinLoading(true);
+    setJoinError(null);
+    try {
+      await api('/api/auth/customer-login', { method: 'POST', body: { email: cleanEmail } });
+      await session.refresh();
+      await open();
+    } catch (err: any) {
+      setJoinError(
+        err?.data?.detail ||
+          (err?.code === 'user_not_found'
+            ? 'No cards found for this email. Switch to "Join" above to get your first stamp!'
+            : 'Could not log in. Please try again.')
+      );
     } finally {
       setJoinLoading(false);
     }
@@ -406,16 +438,36 @@ export function CardPage() {
           {rewardsOpen && (
             <div className="hub-card-body">
               {!isJoined ? (
-                /* Candour Signup View */
+                /* Candour Signup / Login View */
                 <div className="rewards-join-box">
                   <div className="rewards-join-heart">❤️</div>
                   <div>
                     <h2 className="rewards-join-title">{store.name}</h2>
-                    <p className="rewards-join-subtitle">Collect stamps to earn rewards</p>
+                    <p className="rewards-join-subtitle">
+                      {customerMode === 'join' ? 'Collect stamps to earn rewards' : 'Welcome back! View your loyalty card'}
+                    </p>
+                  </div>
+
+                  {/* Mode switcher: Join vs Sign In */}
+                  <div className="hub-mode-toggle">
+                    <button
+                      type="button"
+                      className={`hub-mode-btn ${customerMode === 'join' ? 'active' : ''}`}
+                      onClick={() => { setCustomerMode('join'); setJoinError(null); }}
+                    >
+                      Join Rewards
+                    </button>
+                    <button
+                      type="button"
+                      className={`hub-mode-btn ${customerMode === 'login' ? 'active' : ''}`}
+                      onClick={() => { setCustomerMode('login'); setJoinError(null); }}
+                    >
+                      Log In
+                    </button>
                   </div>
 
                   {/* Reward Badges Preview */}
-                  {store.rewards.length > 0 && (
+                  {store.rewards.length > 0 && customerMode === 'join' && (
                     <div className="rewards-badges-row">
                       {store.rewards.slice(0, 3).map((r, i) => (
                         <div key={r.id} className="reward-badge-card">
@@ -428,60 +480,106 @@ export function CardPage() {
                     </div>
                   )}
 
-                  {/* Name + Email + Birthday Form */}
-                  <form className="join-form" onSubmit={handleJoin}>
-                    <input
-                      type="text"
-                      placeholder="Your name"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      required
-                    />
+                  {customerMode === 'join' ? (
+                    /* Name + Email + Birthday Join Form */
+                    <form className="join-form" onSubmit={handleJoin}>
+                      <input
+                        type="text"
+                        placeholder="Your name"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        required
+                      />
 
-                    <input
-                      type="email"
-                      placeholder="Email address"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                    />
+                      <input
+                        type="email"
+                        placeholder="Email address"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
+                      />
 
-                    <div className="join-birthday-group">
-                      <label className="join-birthday-label">
-                        Birthday 🎂 <span className="hint">(for birthday bonus stamps)</span>
-                      </label>
-                      <div className="join-birthday-row">
-                        <select
-                          value={birthMonth}
-                          onChange={(e) => setBirthMonth(e.target.value ? Number(e.target.value) : '')}
-                        >
-                          <option value="">Month</option>
-                          {MONTHS.map((m, idx) => (
-                            <option key={m} value={idx + 1}>{m}</option>
-                          ))}
-                        </select>
-                        <select
-                          value={birthDay}
-                          onChange={(e) => setBirthDay(e.target.value ? Number(e.target.value) : '')}
-                        >
-                          <option value="">Day</option>
-                          {DAYS_OF_MONTH.map((d) => (
-                            <option key={d} value={d}>{d}</option>
-                          ))}
-                        </select>
+                      <div className="join-birthday-group">
+                        <label className="join-birthday-label">
+                          Birthday 🎂 <span className="hint">(for birthday bonus stamps)</span>
+                        </label>
+                        <div className="join-birthday-row">
+                          <select
+                            value={birthMonth}
+                            onChange={(e) => setBirthMonth(e.target.value ? Number(e.target.value) : '')}
+                          >
+                            <option value="">Month</option>
+                            {MONTHS.map((m, idx) => (
+                              <option key={m} value={idx + 1}>{m}</option>
+                            ))}
+                          </select>
+                          <select
+                            value={birthDay}
+                            onChange={(e) => setBirthDay(e.target.value ? Number(e.target.value) : '')}
+                          >
+                            <option value="">Day</option>
+                            {DAYS_OF_MONTH.map((d) => (
+                              <option key={d} value={d}>{d}</option>
+                            ))}
+                          </select>
+                        </div>
                       </div>
-                    </div>
 
-                    <p className="join-disclaimer">
-                      {store.name} uses your name and email to run your card and send your pass.
-                    </p>
+                      <p className="join-disclaimer">
+                        {store.name} uses your name and email to run your card and send your pass.
+                      </p>
 
-                    {joinError && <div className="notice bad" style={{ margin: '4px 0' }}>{joinError}</div>}
+                      {joinError && <div className="notice bad" style={{ margin: '4px 0' }}>{joinError}</div>}
 
-                    <button type="submit" className="btn-join" disabled={joinLoading}>
-                      {joinLoading ? 'Joining…' : 'Join Loyalty Program'}
-                    </button>
-                  </form>
+                      <button type="submit" className="btn-join" disabled={joinLoading}>
+                        {joinLoading ? 'Joining…' : 'Join Loyalty Program'}
+                      </button>
+
+                      <p className="hint" style={{ marginTop: '12px', textAlign: 'center' }}>
+                        Already a member?{' '}
+                        <button
+                          type="button"
+                          className="link-btn small"
+                          onClick={() => { setCustomerMode('login'); setJoinError(null); }}
+                        >
+                          Sign in with email
+                        </button>
+                      </p>
+                    </form>
+                  ) : (
+                    /* Direct Email Login Form */
+                    <form className="join-form" onSubmit={handleCustomerLogin}>
+                      <input
+                        type="email"
+                        placeholder="Email address"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
+                        autoFocus
+                      />
+
+                      <p className="join-disclaimer">
+                        Enter the email address you used when joining {store.name} Rewards.
+                      </p>
+
+                      {joinError && <div className="notice bad" style={{ margin: '4px 0' }}>{joinError}</div>}
+
+                      <button type="submit" className="btn-join" disabled={joinLoading}>
+                        {joinLoading ? 'Finding your card…' : 'Log In & View My Card'}
+                      </button>
+
+                      <p className="hint" style={{ marginTop: '12px', textAlign: 'center' }}>
+                        New to {store.name}?{' '}
+                        <button
+                          type="button"
+                          className="link-btn small"
+                          onClick={() => { setCustomerMode('join'); setJoinError(null); }}
+                        >
+                          Join loyalty program
+                        </button>
+                      </p>
+                    </form>
+                  )}
                 </div>
               ) : (
                 /* Joined / Logged In Customer View */
