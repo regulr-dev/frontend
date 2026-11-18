@@ -1,11 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { api, type Config, type HappyHourInfo, type PublicStore } from '../api';
 import { useSession } from '../session';
-import { SignIn } from '../components/SignIn';
 import { StoreCard } from '../components/StoreCard';
-import { StoreInfo } from '../components/StoreInfo';
 import { RedeemScreen } from '../components/RedeemScreen';
+import { DAYS, directionsUrl, openStatus } from '../lib/hours';
 
 type Notice = { kind: 'good' | 'info' | 'bad'; text: string } | null;
 type WalletState = 'idle' | 'syncing' | 'updated';
@@ -22,20 +21,26 @@ type TapResult = {
 type OpenResponse = {
   config: Config;
   store: PublicStore;
-  user: { name: string | null; email: string } | null;
+  user: { name: string | null; email: string; birthMonth?: number | null; birthDay?: number | null } | null;
   joined?: boolean;
   tap?: TapResult | null;
   membership?: { balance: number; inWallet: boolean; messagesOff: boolean };
   happyHours: { now: HappyHourInfo | null; today: HappyHourInfo[] };
-  /** Times this customer claimed each reward that has a per-customer limit. */
   claims?: Record<string, number>;
   /** IDs of rewards claimed in the current progressive ladder cycle */
   cycleClaims?: string[];
 };
 
+const DEFAULT_HERO = 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=1200&q=80';
+
+const MONTHS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+];
+const DAYS_OF_MONTH = Array.from({ length: 31 }, (_, i) => i + 1);
+
 const timesWord = (m: number) => (m === 2 ? 'Double' : m === 3 ? 'Triple' : `${m}×`);
 
-/** "Double stamps now, until 16:00" while a happy hour runs, or today's next one. */
 function HappyHourBanner({ now, today }: OpenResponse['happyHours']) {
   const next = now ?? today[0];
   if (!next) return null;
@@ -51,8 +56,28 @@ function HappyHourBanner({ now, today }: OpenResponse['happyHours']) {
     </div>
   );
 }
-type HistoryEvent = { id: string; kind: string; delta: number; rewardName: string | null; note: string | null; createdAt: string };
 
+function GoogleIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24">
+      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.85c.87-2.6 3.3-4.53 6.16-4.53z" />
+    </svg>
+  );
+}
+
+function WalletIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+      <path d="M21 7.28V5c0-1.1-.9-2-2-2H5C3.89 3 3 3.9 3 5v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-2.28c.59-.35 1-.99 1-1.72V9c0-.73-.41-1.37-1-1.72zM20 9v6h-7V9h7zM5 19V5h14v2h-6c-1.1 0-2 .9-2 2v6c0 1.1.9 2 2 2h6v2H5z" fill="currentColor" />
+      <circle cx="16" cy="12" r="1.5" fill="#4285F4" />
+    </svg>
+  );
+}
+
+type HistoryEvent = { id: string; kind: string; delta: number; rewardName: string | null; note: string | null; createdAt: string };
 const reducedMotion = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 const isAndroid = typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent);
 
@@ -70,8 +95,6 @@ export function CardPage() {
   const navigate = useNavigate();
   const session = useSession();
 
-  // The tap id is read once and dropped from the URL, so reloading or the browser
-  // history can't be used to come back to it later.
   const tapRef = useRef<string | null>(params.get('tap'));
   const tapErrorRef = useRef(params.has('tap_error'));
   const cameFromTap = useRef(Boolean(tapRef.current));
@@ -94,6 +117,22 @@ export function CardPage() {
   const [history, setHistory] = useState<HistoryEvent[] | null>(null);
   const [, forceTick] = useState(0);
 
+  // Candour-style cards accordion / expansion state
+  const [rewardsOpen, setRewardsOpen] = useState(true);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [wifiOpen, setWifiOpen] = useState(false);
+  const [hoursOpen, setHoursOpen] = useState(false);
+  const [copiedWifi, setCopiedWifi] = useState(false);
+  const [shareToast, setShareToast] = useState(false);
+
+  // Join form state
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [birthMonth, setBirthMonth] = useState<number | ''>('');
+  const [birthDay, setBirthDay] = useState<number | ''>('');
+  const [joinLoading, setJoinLoading] = useState(false);
+  const [joinError, setJoinError] = useState<string | null>(null);
+
   useEffect(() => {
     if (params.has('tap') || params.has('tap_error')) navigate(`/s/${slug}`, { replace: true });
   }, [params, navigate, slug]);
@@ -109,7 +148,6 @@ export function CardPage() {
     }
   }, [slug]);
 
-  // (No vibration: browsers block it on a page opened by an NFC tap, since there's been no touch yet.)
   const celebrate = useCallback((from: number, to: number) => {
     setBurst(to - from);
     setTimeout(() => setBurst(null), reducedMotion ? 1500 : 2200);
@@ -158,7 +196,6 @@ export function CardPage() {
     } else if (tap?.expiresAt) {
       const expires = new Date(tap.expiresAt);
       setTapExpiresAt(expires);
-      // Re-render when the tap window closes so the Claim buttons lock again.
       setTimeout(() => forceTick((n) => n + 1), expires.getTime() - Date.now() + 500);
       if (!tap.stamped && !res.joined && tap.reason === 'cooldown' && tap.nextStampAt) {
         const at = new Date(tap.nextStampAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -185,9 +222,51 @@ export function CardPage() {
     open();
   }, [open]);
 
-  async function onSignedIn() {
-    await session.refresh();
-    await open();
+  async function handleJoin(e: FormEvent) {
+    e.preventDefault();
+    if (!name.trim()) {
+      setJoinError('Please enter your name');
+      return;
+    }
+    if (!email.trim() || !email.includes('@')) {
+      setJoinError('Please enter a valid email address');
+      return;
+    }
+    setJoinLoading(true);
+    setJoinError(null);
+    try {
+      const res = await api<OpenResponse>(`/api/stores/${encodeURIComponent(slug)}/join`, {
+        method: 'POST',
+        body: {
+          name: name.trim(),
+          email: email.trim(),
+          birthMonth: birthMonth === '' ? null : Number(birthMonth),
+          birthDay: birthDay === '' ? null : Number(birthDay),
+          tapId: tapRef.current ?? undefined,
+        },
+      });
+      setData(res);
+      await session.refresh();
+
+      if (res.membership) {
+        setBalance(res.membership.balance);
+        setCycleClaims(res.cycleClaims ?? []);
+        setInWallet(res.membership.inWallet);
+        setMessagesOff(res.membership.messagesOff);
+      }
+      if (res.joined) {
+        celebrate(0, res.membership?.balance ?? 1);
+        setNotice({
+          kind: 'good',
+          text: `Welcome to ${res.store.name} Rewards! You got ${res.membership?.balance ?? 1} stamp${(res.membership?.balance ?? 1) === 1 ? '' : 's'}. Tap 'Add to Google Wallet' below!`,
+        });
+      }
+      setRewardsOpen(true);
+    } catch (err: any) {
+      setJoinError(err?.message || 'Failed to join loyalty program. Please try again.');
+    } finally {
+      setJoinLoading(false);
+    }
   }
 
   async function addToWallet() {
@@ -209,7 +288,7 @@ export function CardPage() {
       );
       setBalance(result.membership.balance);
       setCycleClaims(result.cycleClaims ?? []);
-      tapRef.current = null; // one reward per tap
+      tapRef.current = null;
       setNotice(null);
       setHistory(null);
       setRedemption({ name: result.reward.name, at: new Date(result.redeemedAt) });
@@ -240,6 +319,27 @@ export function CardPage() {
     setHistory(events);
   }
 
+  function handleShare() {
+    const shareUrl = window.location.origin + `/s/${slug}`;
+    if (navigator.share) {
+      navigator.share({
+        title: `${data?.store.name ?? 'Regulr'} Rewards`,
+        text: `Collect stamps and earn rewards at ${data?.store.name ?? 'this store'}!`,
+        url: shareUrl,
+      }).catch(() => {});
+    } else {
+      navigator.clipboard.writeText(shareUrl);
+      setShareToast(true);
+      setTimeout(() => setShareToast(false), 2500);
+    }
+  }
+
+  function copyWifi() {
+    navigator.clipboard.writeText(`${data?.store.name} Guest`);
+    setCopiedWifi(true);
+    setTimeout(() => setCopiedWifi(false), 2000);
+  }
+
   if (missing) {
     return (
       <div className="page">
@@ -252,160 +352,493 @@ export function CardPage() {
 
   const { store, config } = data;
   const canRedeem = Boolean(tapRef.current && tapExpiresAt && tapExpiresAt > new Date());
-
-  if (!data.user) {
-    return (
-      <div className="page">
-        <StoreCard name={store.name} logoUrl={store.logoUrl} coverUrl={store.coverUrl} bgColor={store.bgColor} textColor={store.textColor} balance={0} rewards={store.rewards} compact />
-        <h2 className="section-title big">Join {store.name} Rewards</h2>
-        <p className="muted">Collect stamps every visit and spend them on the reward menu. No app needed.</p>
-        <SignIn config={config} onSignedIn={onSignedIn} />
-        <StoreInfo store={store} />
-      </div>
-    );
-  }
+  const status = openStatus(store.hours);
+  const isJoined = Boolean(data.user && data.membership);
+  const heroImage = store.coverUrl || DEFAULT_HERO;
 
   return (
-    <div className="page">
-      <StoreCard
-        name={store.name}
-        logoUrl={store.logoUrl}
-        coverUrl={store.coverUrl}
-        bgColor={store.bgColor}
-        textColor={store.textColor}
-        balance={balance}
-        rewards={store.rewards}
-        cycleClaims={cycleClaims}
-        memberName={data.user.name || data.user.email}
-        balanceClassName={bump ? 'bump' : ''}
-        pop={pop}
-      >
-        {burst !== null && (
-          <div className="stamp-burst">
-            <span>+{burst} ⭑</span>
-          </div>
-        )}
-      </StoreCard>
-
-      {notice && <div className={`notice ${notice.kind}`}>{notice.text}</div>}
-
-      <HappyHourBanner {...data.happyHours} />
-
-      {config.googleWallet && (
-        <>
-          {walletState === 'syncing' && <div className="wallet-status">Updating your Google Wallet card…</div>}
-          {walletState === 'updated' && <div className="wallet-status ok">✓ Google Wallet card updated. No need to open it.</div>}
-          {/* Always offered: we only know a card was created, not that it's still in the wallet.
-              Google's save link opens the card if it's there and adds it back if it was removed. */}
-          <div className="actions">
-            <button className={`btn${inWallet ? ' secondary' : ''}`} onClick={addToWallet}>
-              {inWallet ? 'Open in Google Wallet' : 'Add to Google Wallet'}
-            </button>
-          </div>
-        </>
-      )}
-
-      {cameFromTap.current && isAndroid && !tipDismissed && (
-        <div className="notice info tip">
-          <div>
-            Tip: if your phone asked which app to open this with, pick your browser and tap <strong>Always</strong>. Next time the tap opens
-            straight away.
-          </div>
-          <button
-            className="btn secondary small-btn"
-            onClick={() => {
-              try {
-                localStorage.setItem('regulr_tip_always', '1');
-              } catch {}
-              setTipDismissed(true);
-            }}
-          >
-            Got it
-          </button>
-        </div>
-      )}
-
-      <h3 className="section-title">Reward menu</h3>
-      <div className="rewards">
-        {store.rewards.length === 0 && <p className="muted">No rewards yet.</p>}
-        {store.rewards.map((r) => {
-          const missingStamps = r.cost - balance;
-          const used = data.claims?.[r.id] ?? 0;
-          const usedUp = r.perCustomerLimit != null && used >= r.perCustomerLimit;
-          const claimedInCycle = cycleClaims.includes(r.id);
-          const lastDay = r.endsAt && new Date(new Date(r.endsAt).getTime() - 1).toLocaleDateString([], { day: 'numeric', month: 'short' });
-          return (
-            <div className={`reward${usedUp || claimedInCycle ? ' used-up' : ''}`} key={r.id}>
-              <div className="info">
-                <div><strong>{r.name}</strong></div>
-                {r.description && <div className="hint">{r.description}</div>}
-                {(lastDay || r.perCustomerLimit) && (
-                  <div className="pills">
-                    {lastDay && <span className="pill soon">Until {lastDay}</span>}
-                    {r.perCustomerLimit != null && <span className="pill">{r.perCustomerLimit === 1 ? 'Once per customer' : `${r.perCustomerLimit} per customer`}</span>}
-                  </div>
-                )}
-              </div>
-              <div className="cost">{r.cost} ⭑</div>
-              {claimedInCycle ? (
-                <span className="badge" style={{ background: '#dcfce7', color: '#15803d', fontWeight: 600 }}>Claimed</span>
-              ) : usedUp ? (
-                <span className="hint">Already claimed</span>
-              ) : missingStamps > 0 ? (
-                <span className="hint">Collect {missingStamps} more</span>
-              ) : canRedeem ? (
-                <button className="btn brand" style={{ background: store.bgColor, color: store.textColor }} onClick={() => claimReward(r.id)}>
-                  Claim
-                </button>
-              ) : (
-                <span className="hint">Tap the cashier's card to claim</span>
-              )}
-            </div>
-          );
-        })}
+    <div className="store-hub">
+      {/* 1. Header Hero Cover Photo */}
+      <div className="store-hub-hero">
+        <img src={heroImage} alt={store.name} />
+        <div className="store-hub-hero-overlay" />
       </div>
 
-      <StoreInfo store={store} />
+      {/* 2. Overlapping Circular Logo */}
+      <div className="store-hub-logo-container">
+        {store.logoUrl ? (
+          <img className="store-hub-logo" src={store.logoUrl} alt={store.name} />
+        ) : (
+          <div className="store-hub-logo" style={{ background: store.bgColor, color: store.textColor }}>
+            {store.name.slice(0, 2).toUpperCase()}
+          </div>
+        )}
+      </div>
 
-      <label className="switch-row">
-        <span>
-          <strong>Messages from {store.name}</strong>
-          <span className="hint">News and offers in your inbox{inWallet ? ' and Google Wallet' : ''}</span>
-        </span>
-        <input type="checkbox" role="switch" aria-label={`Messages from ${store.name}`} checked={!messagesOff} onChange={toggleMessages} />
-      </label>
+      {/* 3. Store Title & Tagline */}
+      <div className="store-hub-header">
+        <h1 className="store-hub-title">{store.name}</h1>
+        <p className="store-hub-tagline">{store.description || 'Simply good coffee · Collect stamps & earn rewards'}</p>
+      </div>
 
-      <h3 className="section-title">Your history</h3>
-      {history === null ? (
-        <button className="btn secondary" onClick={loadHistory}>Show history</button>
-      ) : history.length === 0 ? (
-        <p className="muted">Nothing yet.</p>
-      ) : (
-        <ul className="history">
-          {history.map((e) => (
-            <li key={e.id}>
-              <span>
-                {e.kind === 'redeem'
-                  ? `Claimed ${e.rewardName}`
-                  : e.kind === 'welcome'
-                    ? 'Joined'
-                    : e.kind === 'birthday'
-                      ? 'Birthday bonus 🎂'
-                      : e.kind === 'adjust'
-                        ? `Adjusted by the shop${e.note ? `: ${e.note}` : ''}`
-                        : `Stamp${e.note ? ` · ${e.note}` : ''}`}
-              </span>
-              <span className="muted small">{new Date(e.createdAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</span>
-              <span className={e.delta >= 0 ? 'plus' : 'minus'}>
-                {e.delta >= 0 ? '+' : ''}
-                {e.delta}
-              </span>
-            </li>
-          ))}
-        </ul>
+      {/* 4. Candour-Style Action Cards Stack */}
+      <div className="store-hub-cards">
+        {/* CARD 1: Start Earning Rewards / Your Loyalty Card */}
+        <div className="hub-card">
+          <button
+            type="button"
+            className="hub-card-header"
+            onClick={() => setRewardsOpen((prev) => !prev)}
+            aria-expanded={rewardsOpen}
+          >
+            <div className="hub-icon-pill pink">❤️</div>
+            <div className="hub-card-info">
+              <div className="hub-card-title">
+                {isJoined ? `Your Loyalty Card (${balance} ★)` : 'Start earning rewards'}
+              </div>
+              <div className="hub-card-subtitle">
+                {isJoined ? `Member: ${data.user?.name || data.user?.email}` : 'Collect stamps for free rewards'}
+              </div>
+            </div>
+            <span className={`hub-card-arrow ${rewardsOpen ? 'rotated' : ''}`}>▾</span>
+          </button>
+
+          {rewardsOpen && (
+            <div className="hub-card-body">
+              {!isJoined ? (
+                /* Candour Signup View */
+                <div className="rewards-join-box">
+                  <div className="rewards-join-heart">❤️</div>
+                  <div>
+                    <h2 className="rewards-join-title">{store.name}</h2>
+                    <p className="rewards-join-subtitle">Collect stamps to earn rewards</p>
+                  </div>
+
+                  {/* Reward Badges Preview */}
+                  {store.rewards.length > 0 && (
+                    <div className="rewards-badges-row">
+                      {store.rewards.slice(0, 3).map((r, i) => (
+                        <div key={r.id} className="reward-badge-card">
+                          <div className={`reward-badge-circle ${i === 1 ? 'pink' : i === 2 ? 'green' : ''}`}>
+                            {r.cost}
+                          </div>
+                          <span className="reward-badge-name">{r.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Name + Email + Birthday Form */}
+                  <form className="join-form" onSubmit={handleJoin}>
+                    <input
+                      type="text"
+                      placeholder="Your name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      required
+                    />
+
+                    <input
+                      type="email"
+                      placeholder="Email address"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                    />
+
+                    <div className="join-birthday-group">
+                      <label className="join-birthday-label">
+                        Birthday 🎂 <span className="hint">(for birthday bonus stamps)</span>
+                      </label>
+                      <div className="join-birthday-row">
+                        <select
+                          value={birthMonth}
+                          onChange={(e) => setBirthMonth(e.target.value ? Number(e.target.value) : '')}
+                        >
+                          <option value="">Month</option>
+                          {MONTHS.map((m, idx) => (
+                            <option key={m} value={idx + 1}>{m}</option>
+                          ))}
+                        </select>
+                        <select
+                          value={birthDay}
+                          onChange={(e) => setBirthDay(e.target.value ? Number(e.target.value) : '')}
+                        >
+                          <option value="">Day</option>
+                          {DAYS_OF_MONTH.map((d) => (
+                            <option key={d} value={d}>{d}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <p className="join-disclaimer">
+                      {store.name} uses your name and email to run your card and send your pass.
+                    </p>
+
+                    {joinError && <div className="notice bad" style={{ margin: '4px 0' }}>{joinError}</div>}
+
+                    <button type="submit" className="btn-join" disabled={joinLoading}>
+                      {joinLoading ? 'Joining…' : 'Join Loyalty Program'}
+                    </button>
+                  </form>
+                </div>
+              ) : (
+                /* Joined / Logged In Customer View */
+                <div className="member-active-section">
+                  <StoreCard
+                    name={store.name}
+                    logoUrl={store.logoUrl}
+                    coverUrl={store.coverUrl}
+                    bgColor={store.bgColor}
+                    textColor={store.textColor}
+                    balance={balance}
+                    rewards={store.rewards}
+                    cycleClaims={cycleClaims}
+                    memberName={data.user?.name || data.user?.email}
+                    balanceClassName={bump ? 'bump' : ''}
+                    pop={pop}
+                  >
+                    {burst !== null && (
+                      <div className="stamp-burst">
+                        <span>+{burst} ⭑</span>
+                      </div>
+                    )}
+                  </StoreCard>
+
+                  {notice && <div className={`notice ${notice.kind}`}>{notice.text}</div>}
+
+                  <HappyHourBanner {...data.happyHours} />
+
+                  {/* Add to Google Wallet */}
+                  {config.googleWallet && (
+                    <div style={{ display: 'grid', gap: '8px' }}>
+                      {walletState === 'syncing' && <div className="wallet-status">Updating your Google Wallet card…</div>}
+                      {walletState === 'updated' && <div className="wallet-status ok">✓ Google Wallet card updated.</div>}
+                      <button
+                        type="button"
+                        className={`btn-wallet ${inWallet ? 'saved' : ''}`}
+                        onClick={addToWallet}
+                      >
+                        <WalletIcon />
+                        {inWallet ? 'In Google Wallet ✓ (Open Pass)' : 'Add to Google Wallet'}
+                      </button>
+                    </div>
+                  )}
+
+                  {cameFromTap.current && isAndroid && !tipDismissed && (
+                    <div className="notice info tip">
+                      <div>
+                        Tip: if your phone asked which app to open this with, pick your browser and tap <strong>Always</strong>.
+                      </div>
+                      <button
+                        className="btn secondary small-btn"
+                        onClick={() => {
+                          try {
+                            localStorage.setItem('regulr_tip_always', '1');
+                          } catch {}
+                          setTipDismissed(true);
+                        }}
+                      >
+                        Got it
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Reward Menu */}
+                  <div style={{ marginTop: '8px' }}>
+                    <h3 className="section-title">Reward menu</h3>
+                    <div className="rewards">
+                      {store.rewards.length === 0 && <p className="muted">No rewards yet.</p>}
+                      {store.rewards.map((r) => {
+                        const missingStamps = r.cost - balance;
+                        const used = data.claims?.[r.id] ?? 0;
+                        const usedUp = r.perCustomerLimit != null && used >= r.perCustomerLimit;
+                        const claimedInCycle = cycleClaims.includes(r.id);
+                        const lastDay = r.endsAt && new Date(new Date(r.endsAt).getTime() - 1).toLocaleDateString([], { day: 'numeric', month: 'short' });
+                        return (
+                          <div className={`reward${usedUp || claimedInCycle ? ' used-up' : ''}`} key={r.id}>
+                            <div className="info">
+                              <div><strong>{r.name}</strong></div>
+                              {r.description && <div className="hint">{r.description}</div>}
+                              {(lastDay || r.perCustomerLimit) && (
+                                <div className="pills">
+                                  {lastDay && <span className="pill soon">Until {lastDay}</span>}
+                                  {r.perCustomerLimit != null && <span className="pill">{r.perCustomerLimit === 1 ? 'Once per customer' : `${r.perCustomerLimit} per customer`}</span>}
+                                </div>
+                              )}
+                            </div>
+                            <div className="cost">{r.cost} ⭑</div>
+                            {claimedInCycle ? (
+                              <span className="badge" style={{ background: '#dcfce7', color: '#15803d', fontWeight: 600 }}>Claimed</span>
+                            ) : usedUp ? (
+                              <span className="hint">Already claimed</span>
+                            ) : missingStamps > 0 ? (
+                              <span className="hint">Collect {missingStamps} more</span>
+                            ) : canRedeem ? (
+                              <button className="btn brand" style={{ background: store.bgColor, color: store.textColor }} onClick={() => claimReward(r.id)}>
+                                Claim
+                              </button>
+                            ) : (
+                              <span className="hint">Tap cashier card to claim</span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Messages Toggle */}
+                  <label className="switch-row" style={{ marginTop: '14px' }}>
+                    <span>
+                      <strong>Messages from {store.name}</strong>
+                      <span className="hint">News and offers in your inbox{inWallet ? ' and Google Wallet' : ''}</span>
+                    </span>
+                    <input type="checkbox" role="switch" aria-label={`Messages from ${store.name}`} checked={!messagesOff} onChange={toggleMessages} />
+                  </label>
+
+                  {/* History */}
+                  <div style={{ marginTop: '10px' }}>
+                    <h3 className="section-title">Your history</h3>
+                    {history === null ? (
+                      <button className="btn secondary" onClick={loadHistory}>Show history</button>
+                    ) : history.length === 0 ? (
+                      <p className="muted">No activity yet.</p>
+                    ) : (
+                      <ul className="history">
+                        {history.map((e) => (
+                          <li key={e.id}>
+                            <span>
+                              {e.kind === 'redeem'
+                                ? `Claimed ${e.rewardName}`
+                                : e.kind === 'welcome'
+                                  ? 'Joined'
+                                  : e.kind === 'birthday'
+                                    ? 'Birthday bonus 🎂'
+                                    : e.kind === 'adjust'
+                                      ? `Adjusted by the shop${e.note ? `: ${e.note}` : ''}`
+                                      : `Stamp${e.note ? ` · ${e.note}` : ''}`}
+                            </span>
+                            <span className="muted small">{new Date(e.createdAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                            <span className={e.delta >= 0 ? 'plus' : 'minus'}>
+                              {e.delta >= 0 ? '+' : ''}
+                              {e.delta}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+
+                  {/* Account switcher */}
+                  <div style={{ fontSize: '0.82rem', color: '#64748b', textAlign: 'center', marginTop: '12px' }}>
+                    Signed in as {data.user?.name || data.user?.email} ·{' '}
+                    <button
+                      type="button"
+                      className="link-btn small"
+                      onClick={async () => {
+                        await session.signOut();
+                        await open();
+                      }}
+                    >
+                      Sign out / Switch
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* CARD 2: Leave a Google Review */}
+        <div className="hub-card">
+          <a
+            href={`https://www.google.com/search?q=${encodeURIComponent(store.name + ' ' + (store.address || ''))}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hub-card-header"
+            style={{ textDecoration: 'none' }}
+          >
+            <div className="hub-icon-pill white">
+              <GoogleIcon />
+            </div>
+            <div className="hub-card-info">
+              <div className="hub-card-title">Leave a Google Review</div>
+              <div className="hub-card-subtitle">Help others find us on Google</div>
+            </div>
+            <span className="hub-card-arrow">›</span>
+          </a>
+        </div>
+
+        {/* CARD 3: View Menu */}
+        <div className="hub-card">
+          <button
+            type="button"
+            className="hub-card-header"
+            onClick={() => setMenuOpen((prev) => !prev)}
+            aria-expanded={menuOpen}
+          >
+            <div className="hub-icon-pill orange">📋</div>
+            <div className="hub-card-info">
+              <div className="hub-card-title">View Menu</div>
+              <div className="hub-card-subtitle">{store.rewards.length} loyalty items available</div>
+            </div>
+            <span className={`hub-card-arrow ${menuOpen ? 'rotated' : ''}`}>▾</span>
+          </button>
+
+          {menuOpen && (
+            <div className="hub-card-body">
+              <div className="hub-menu-list">
+                {store.rewards.length === 0 ? (
+                  <p className="muted">No menu items added yet.</p>
+                ) : (
+                  store.rewards.map((r) => (
+                    <div key={r.id} className="reward" style={{ background: '#f8fafc' }}>
+                      <div className="info">
+                        <strong>{r.name}</strong>
+                        {r.description && <div className="hint">{r.description}</div>}
+                      </div>
+                      <div className="cost">{r.cost} ★</div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* CARD 4: Connect to Wi-Fi */}
+        <div className="hub-card">
+          <button
+            type="button"
+            className="hub-card-header"
+            onClick={() => setWifiOpen((prev) => !prev)}
+            aria-expanded={wifiOpen}
+          >
+            <div className="hub-icon-pill green">📶</div>
+            <div className="hub-card-info">
+              <div className="hub-card-title">Connect to Wi-Fi</div>
+              <div className="hub-card-subtitle">Free high-speed guest Wi-Fi</div>
+            </div>
+            <span className={`hub-card-arrow ${wifiOpen ? 'rotated' : ''}`}>▾</span>
+          </button>
+
+          {wifiOpen && (
+            <div className="hub-card-body">
+              <div className="wifi-box">
+                <div style={{ fontSize: '0.85rem', color: '#64748b' }}>Network Name</div>
+                <div className="wifi-net-name">{store.name} Guest</div>
+                <div className="wifi-pass-hint">
+                  Password: Ask barista or see counter card
+                </div>
+                <button type="button" className="btn secondary small-btn" onClick={copyWifi}>
+                  {copiedWifi ? '✓ Network Copied' : 'Copy Network Name'}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* CARD 5: Directions & Hours */}
+        {(store.address || store.hours) && (
+          <div className="hub-card">
+            <button
+              type="button"
+              className="hub-card-header"
+              onClick={() => setHoursOpen((prev) => !prev)}
+              aria-expanded={hoursOpen}
+            >
+              <div className="hub-icon-pill blue">📍</div>
+              <div className="hub-card-info">
+                <div className="hub-card-title">Directions & Hours</div>
+                <div className="hub-card-subtitle">
+                  {status ? status.text : (store.address || 'Visit us')}
+                </div>
+              </div>
+              <span className={`hub-card-arrow ${hoursOpen ? 'rotated' : ''}`}>▾</span>
+            </button>
+
+            {hoursOpen && (
+              <div className="hub-card-body">
+                <div style={{ paddingTop: '10px' }}>
+                  {store.address && <p style={{ margin: '6px 0', fontWeight: 500 }}>{store.address}</p>}
+                  {status && (
+                    <div style={{ margin: '8px 0', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span className={`dot ${status.open ? 'open' : 'closed'}`} /> {status.text}
+                    </div>
+                  )}
+                  {store.hours && (
+                    <table className="hours-table" style={{ width: '100%', margin: '10px 0' }}>
+                      <tbody>
+                        {store.hours.map((d, i) => (
+                          <tr key={DAYS[i]}>
+                            <td>{DAYS[i]}</td>
+                            <td>{d.closed ? 'Closed' : `${d.open} – ${d.close}`}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                  <div className="actions">
+                    <a className="btn secondary" href={directionsUrl(store)} target="_blank" rel="noreferrer">
+                      Get Directions
+                    </a>
+                    {store.phone && (
+                      <a className="btn secondary" href={`tel:${store.phone.replace(/\s/g, '')}`}>
+                        Call Store
+                      </a>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* CARD 6: Share with Friends */}
+        <div className="hub-card">
+          <button
+            type="button"
+            className="hub-card-header"
+            onClick={handleShare}
+          >
+            <div className="hub-icon-pill purple">🎁</div>
+            <div className="hub-card-info">
+              <div className="hub-card-title">Share with Friends</div>
+              <div className="hub-card-subtitle">
+                {shareToast ? '✓ Link copied to clipboard!' : 'Invite friends to earn rewards'}
+              </div>
+            </div>
+            <span className="hub-card-arrow">›</span>
+          </button>
+        </div>
+      </div>
+
+      {/* 5. Footer */}
+      <div className="store-hub-footer">
+        <a
+          href="https://instagram.com"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="social-link"
+          aria-label="Instagram"
+        >
+          📷
+        </a>
+        <a href="/" className="hub-brand-footer">
+          <span>❤️</span>
+          <span>Powered by Regulr</span>
+        </a>
+      </div>
+
+      {redemption && (
+        <RedeemScreen
+          store={store}
+          rewardName={redemption.name}
+          redeemedAt={redemption.at}
+          onDone={() => setRedemption(null)}
+        />
       )}
-
-      {redemption && <RedeemScreen store={store} rewardName={redemption.name} redeemedAt={redemption.at} onDone={() => setRedemption(null)} />}
     </div>
   );
 }

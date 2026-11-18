@@ -486,3 +486,455 @@ table.clickable tbody tr:hover, table.clickable tbody tr:focus-visible { backgro
 .reward.used-up { opacity: 0.6; }
 .shop-chip.happy { right: auto; left: 10px; background: #f59e0b; }
 .birthday-row select { width: auto; flex: 1 1 120px; }
+
+/* --- Candour-style Store Hub (/s/:slug) --- */
+.store-hub {
+  max-width: 500px;
+  margin: 0 auto;
+  padding-bottom: 50px;
+  background: var(--bg);
+  min-height: 100dvh;
+}
+
+.store-hub-hero {
+  position: relative;
+  width: 100%;
+  height: 200px;
+  overflow: hidden;
+  background-color: var(--brand-bg, #1e293b);
+  border-bottom-left-radius: 24px;
+  border-bottom-right-radius: 24px;
+}
+
+.store-hub-hero img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.store-hub-hero-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.55) 100%);
+}
+
+.store-hub-logo-container {
+  display: flex;
+  justify-content: center;
+  position: relative;
+  margin-top: -46px;
+  z-index: 2;
+}
+
+.store-hub-logo {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  border: 4px solid #ffffff;
+  box-shadow: 0 4px 18px rgba(0,0,0,0.12);
+  object-fit: cover;
+  background: #ffffff;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 1.5rem;
+  color: var(--brand-fg, #ffffff);
+}
+
+.store-hub-header {
+  text-align: center;
+  padding: 12px 16px 8px;
+}
+
+.store-hub-title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #1e293b;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.store-hub-tagline {
+  font-size: 0.92rem;
+  color: #64748b;
+  margin: 4px 0 0;
+}
+
+/* Candour-style Stacked Action Cards */
+.store-hub-cards {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+}
+
+.hub-card {
+  background: #ffffff;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 20px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.hub-card-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  cursor: pointer;
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+}
+
+.hub-card-header:active {
+  background-color: #f8fafc;
+}
+
+.hub-icon-pill {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 1.25rem;
+  flex: 0 0 42px;
+}
+
+.hub-icon-pill.pink {
+  background: #ffe4e6;
+  color: #e11d48;
+}
+
+.hub-icon-pill.white {
+  background: #f1f5f9;
+  color: #1e293b;
+}
+
+.hub-icon-pill.orange {
+  background: #ffedd5;
+  color: #ea580c;
+}
+
+.hub-icon-pill.green {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.hub-icon-pill.blue {
+  background: #e0f2fe;
+  color: #0284c7;
+}
+
+.hub-icon-pill.purple {
+  background: #f3e8ff;
+  color: #9333ea;
+}
+
+.hub-card-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.hub-card-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0;
+}
+
+.hub-card-subtitle {
+  font-size: 0.82rem;
+  color: #64748b;
+  margin: 2px 0 0;
+}
+
+.hub-card-arrow {
+  color: #94a3b8;
+  font-size: 1.1rem;
+  transition: transform 0.2s ease;
+}
+
+.hub-card-arrow.rotated {
+  transform: rotate(180deg);
+}
+
+.hub-card-body {
+  padding: 4px 16px 20px;
+  border-top: 1px solid #f1f5f9;
+  margin-top: 2px;
+}
+
+/* Inside Start Earning Rewards card */
+.rewards-join-box {
+  display: grid;
+  gap: 14px;
+  padding-top: 16px;
+  text-align: center;
+}
+
+.rewards-join-heart {
+  font-size: 2.8rem;
+  line-height: 1;
+  margin: 0 auto;
+}
+
+.rewards-join-title {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #1e293b;
+  margin: 0;
+}
+
+.rewards-join-subtitle {
+  font-size: 0.92rem;
+  color: #64748b;
+  margin: 2px 0 0;
+}
+
+/* Badges preview row */
+.rewards-badges-row {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin: 8px 0;
+}
+
+.reward-badge-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 120px;
+}
+
+.reward-badge-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #fef3c7;
+  color: #b45309;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  font-size: 0.95rem;
+}
+
+.reward-badge-circle.pink {
+  background: #ffe4e6;
+  color: #e11d48;
+}
+
+.reward-badge-circle.green {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.reward-badge-name {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #1e293b;
+  text-align: left;
+}
+
+/* Join form */
+.join-form {
+  display: grid;
+  gap: 12px;
+  text-align: left;
+  margin-top: 6px;
+}
+
+.join-form input,
+.join-form select {
+  border-radius: 12px;
+  border: 1px solid #cbd5e1;
+  padding: 12px 14px;
+  font-size: 0.95rem;
+  background: #fff;
+}
+
+.join-form input:focus,
+.join-form select:focus {
+  border-color: #e11d48;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(225, 29, 72, 0.15);
+}
+
+.join-birthday-group {
+  display: grid;
+  gap: 6px;
+}
+
+.join-birthday-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.join-birthday-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.join-disclaimer {
+  font-size: 0.78rem;
+  color: #64748b;
+  line-height: 1.45;
+  margin: 4px 0 0;
+  text-align: center;
+}
+
+.join-disclaimer a {
+  color: #2563eb;
+  text-decoration: underline;
+}
+
+.btn-join {
+  width: 100%;
+  padding: 13px 18px;
+  font-size: 1.05rem;
+  border-radius: 999px;
+  font-weight: 700;
+  cursor: pointer;
+  background: #e11d48;
+  color: #ffffff;
+  border: none;
+  box-shadow: 0 4px 14px rgba(225, 29, 72, 0.3);
+  transition: transform 0.1s ease, filter 0.1s ease;
+  margin-top: 4px;
+}
+
+.btn-join:hover {
+  filter: brightness(1.05);
+}
+
+.btn-join:active {
+  transform: scale(0.98);
+}
+
+.btn-join:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Active Membership Card inside Hub */
+.member-active-section {
+  display: grid;
+  gap: 16px;
+  padding-top: 14px;
+}
+
+/* Google Wallet Button */
+.btn-wallet {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: #000000;
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 0.95rem;
+  padding: 12px 20px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+  width: 100%;
+  text-decoration: none;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.btn-wallet:hover {
+  background: #1e293b;
+}
+
+.btn-wallet:active {
+  transform: scale(0.98);
+}
+
+.btn-wallet.saved {
+  background: #15803d;
+}
+
+.wallet-logo-icon {
+  width: 20px;
+  height: 20px;
+}
+
+/* Menu list inside hub card */
+.hub-menu-list {
+  display: grid;
+  gap: 10px;
+  padding-top: 14px;
+}
+
+/* Wi-Fi card content */
+.wifi-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 16px;
+  margin-top: 14px;
+  text-align: center;
+  display: grid;
+  gap: 10px;
+}
+
+.wifi-net-name {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.wifi-pass-hint {
+  font-size: 0.88rem;
+  color: #64748b;
+}
+
+/* Footer */
+.store-hub-footer {
+  text-align: center;
+  padding: 24px 16px 20px;
+  display: grid;
+  gap: 12px;
+  justify-items: center;
+}
+
+.social-link {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  display: grid;
+  place-items: center;
+  color: #1e293b;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+  text-decoration: none;
+  font-size: 1.3rem;
+  transition: transform 0.15s ease;
+}
+
+.social-link:hover {
+  transform: scale(1.08);
+}
+
+.hub-brand-footer {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #94a3b8;
+  text-decoration: none;
+}
+

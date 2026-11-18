@@ -70,3 +70,4 @@ Developers do not need to configure CORS or custom URLs locally.
 - **Environment Variables:**
   - `VITE_API_URL`: Backend Vercel URL (e.g. `https://regulr-backend.vercel.app`)
   - `VITE_WEBSITE_URL`: Marketing website URL (optional)
+
