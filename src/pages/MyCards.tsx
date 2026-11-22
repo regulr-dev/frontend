@@ -28,15 +28,7 @@ export function MyCards() {
     );
   }
 
-  if (!user) {
-    return (
-      <div className="page">
-        <h1 className="page-title">Your loyalty cards</h1>
-        <p className="muted">Sign in to see the cards you've collected at Regulr shops.</p>
-        <SignIn config={config} onSignedIn={refresh} />
-      </div>
-    );
-  }
+  if (!user) return null;
 
   return (
     <div className="page">

@@ -62,14 +62,7 @@ export function Account() {
 
   if (loading || !config) return <div className="page"><p className="muted">Loading…</p></div>;
 
-  if (!user) {
-    return (
-      <div className="page">
-        <h1 className="page-title">Account</h1>
-        <SignIn config={config} onSignedIn={refresh} />
-      </div>
-    );
-  }
+  if (!user) return null;
 
   async function deleteAccount() {
     if (!confirm('Delete your Regulr account?\n\nAll your cards and stamps at every shop will be permanently removed. This cannot be undone.')) return;
