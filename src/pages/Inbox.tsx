@@ -27,15 +27,7 @@ export function Inbox() {
 
   if (loading || !config) return <div className="page"><p className="muted">Loading…</p></div>;
 
-  if (!user) {
-    return (
-      <div className="page">
-        <h1 className="page-title">Inbox</h1>
-        <p className="muted">Sign in to see news and offers from the shops you've joined.</p>
-        <SignIn config={config} onSignedIn={refresh} />
-      </div>
-    );
-  }
+  if (!user) return null;
 
   return (
     <div className="page">

@@ -64,6 +64,7 @@ label.check { display: flex; align-items: center; gap: 8px; font-weight: 500; }
 /* --- Customer shell: content + bottom tab bar --- */
 .customer-shell { min-height: 100dvh; }
 .customer-main { padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom)); }
+.customer-main.no-tabbar { padding-bottom: 0; }
 .page { max-width: 480px; margin: 0 auto; padding: 16px 16px 32px; }
 .page-title { font-size: 1.6rem; margin: 6px 0 16px; }
 .section-title { margin: 24px 0 10px; font-size: 1rem; }

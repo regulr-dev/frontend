@@ -22,31 +22,52 @@ export function CustomerLayout() {
   // Recount on every page change, so a new message shows up as the customer moves around.
   useEffect(refreshUnread, [refreshUnread, pathname]);
 
+  // Dedicated login view hides the bottom tabbar entirely
+  const hideTabbar = pathname === '/login';
+
   return (
     <div className="customer-shell">
-      <main className="customer-main">
+      <main className={`customer-main${hideTabbar ? ' no-tabbar' : ''}`}>
         <Outlet context={{ refreshUnread } satisfies CustomerOutlet} />
       </main>
-      <nav className="tabbar">
-        <NavLink to="/cards">
-          <span aria-hidden>▤</span>
-          My cards
-        </NavLink>
-        <NavLink to="/discover">
-          <span aria-hidden>◎</span>
-          Discover
-        </NavLink>
-        <NavLink to="/inbox" aria-label={unread ? `Inbox, ${unread} unread` : 'Inbox'}>
-          <span aria-hidden className="tab-icon">
-            ✉{unread > 0 && <b className="tab-badge">{unread > 9 ? '9+' : unread}</b>}
-          </span>
-          Inbox
-        </NavLink>
-        <NavLink to="/account">
-          <span aria-hidden>◐</span>
-          Account
-        </NavLink>
-      </nav>
+
+      {!hideTabbar && (
+        <nav className="tabbar">
+          {user ? (
+            <>
+              <NavLink to="/cards">
+                <span aria-hidden>▤</span>
+                My cards
+              </NavLink>
+              <NavLink to="/discover">
+                <span aria-hidden>◎</span>
+                Discover
+              </NavLink>
+              <NavLink to="/inbox" aria-label={unread ? `Inbox, ${unread} unread` : 'Inbox'}>
+                <span aria-hidden className="tab-icon">
+                  ✉{unread > 0 && <b className="tab-badge">{unread > 9 ? '9+' : unread}</b>}
+                </span>
+                Inbox
+              </NavLink>
+              <NavLink to="/account">
+                <span aria-hidden>◐</span>
+                Account
+              </NavLink>
+            </>
+          ) : (
+            <>
+              <NavLink to="/discover">
+                <span aria-hidden>◎</span>
+                Discover
+              </NavLink>
+              <NavLink to="/login">
+                <span aria-hidden>→</span>
+                Sign in
+              </NavLink>
+            </>
+          )}
+        </nav>
+      )}
     </div>
   );
 }
